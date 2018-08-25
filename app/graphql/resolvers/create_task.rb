@@ -10,10 +10,11 @@ class Resolvers::CreateTask < GraphQL::Function
   # _obj - is parent object, which in this case is nil
   # args - are the arguments passed
   # _ctx - is the GraphQL context (which would be discussed later)
-  def call(_obj, args, _ctx)
+  def call(_obj, args, ctx)
     Task.create!(
       description: args[:description],
       name: args[:name],
+      user: ctx[:current_user],
     )
   end
 end
