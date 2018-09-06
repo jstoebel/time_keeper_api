@@ -1,3 +1,5 @@
+require 'json_web_token'
+
 class Resolvers::SignInUser < GraphQL::Function
   argument :email, !Types::AuthProviderEmailInput
 
@@ -21,17 +23,8 @@ class Resolvers::SignInUser < GraphQL::Function
     return unless user
     return unless user.authenticate(input[:password])
 
-    # use Ruby on Rails - ActiveSupport::MessageEncryptor, to build a token
-    # For Ruby on Rails >=5.2.x use:
-    # crypt = ActiveSupport::MessageEncryptor.new(Rails.application.credentials.secret_key_base.byteslice(0..31))
-    crypt = ActiveSupport::MessageEncryptor.new(Rails.application.secrets.secret_key_base.byteslice(0..31))
-    token = crypt.encrypt_and_sign("user-id:#{ user.id }")
+    token = JsonWebToken.encode(user_id: user.id)
 
-    ctx[:session][:token] = token
-
-    OpenStruct.new({
-      user: user,
-      token: token
-    })
+    OpenStruct.new(user: user, token: token)
   end
 end

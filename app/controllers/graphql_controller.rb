@@ -1,49 +1,34 @@
+require 'json_web_token'
 class GraphqlController < ApplicationController
+  protect_from_forgery with: :null_session
   def execute
-    variables = ensure_hash(params[:variables])
     query = params[:query]
     operation_name = params[:operationName]
     context = {
       # we need to provide session and current user
-      session: session,
+      session:      session,
       current_user: current_user,
     }
-    result = TimeKeeperApiSchema.execute(query, variables: variables, context: context, operation_name: operation_name)
+    result = TimeKeeperApiSchema.execute(query, context: context, operation_name: operation_name)
     render json: result
   end
 
   private
 
-  # gets current user from token stored in session
+  # attempts to retrieve user based on a jwt. returns nil if none found.
   def current_user
-    # if we want to change the sign-in strategy, this is the place todo it
-    return unless session[:token]
-
-    # For Ruby on Rails >=5.2.x use:
-    # crypt = ActiveSupport::MessageEncryptor.new(Rails.application.credentials.secret_key_base.byteslice(0..31))
-    crypt = ActiveSupport::MessageEncryptor.new(Rails.application.secrets.secret_key_base.byteslice(0..31))
-    token = crypt.decrypt_and_verify session[:token]
-    user_id = token.gsub('user-id:', '').to_i
-    User.find_by id: user_id
-  rescue ActiveSupport::MessageVerifier::InvalidSignature
-    nil
+    build_payload!
+    return if !@payload || !JsonWebToken.valid_payload(@payload)
+    User.find_by(id: @payload['user_id'])
   end
 
-  # Handle form data, JSON body, or a blank value
-  def ensure_hash(ambiguous_param)
-    case ambiguous_param
-    when String
-      if ambiguous_param.present?
-        ensure_hash(JSON.parse(ambiguous_param))
-      else
-        {}
-      end
-    when Hash, ActionController::Parameters
-      ambiguous_param
-    when nil
-      {}
-    else
-      raise ArgumentError, "Unexpected parameter: #{ambiguous_param}"
-    end
+  # Deconstructs the Authorization header and decodes the JWT token.
+  # Returns decoded token. Example structure: 
+  # {"user_id"=>1, "exp"=>1536795537, "iss"=>"issuer_name", "aud"=>"client"}, {"alg"=>"HS256"}
+  def build_payload!
+    auth_header = request.headers['Authorization']
+    return if auth_header.blank?
+    token = auth_header.split(' ').last
+    @payload = JsonWebToken.decode(token).first
   end
 end
