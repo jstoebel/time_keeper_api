@@ -4,12 +4,13 @@ class GraphqlController < ApplicationController
   def execute
     query = params[:query]
     operation_name = params[:operationName]
+    variables = params[:variables]
     context = {
       # we need to provide session and current user
       session:      session,
       current_user: current_user,
     }
-    result = TimeKeeperApiSchema.execute(query, context: context, operation_name: operation_name)
+    result = TimeKeeperApiSchema.execute(query, context: context, operation_name: operation_name, variables: variables)
     render json: result
   end
 
