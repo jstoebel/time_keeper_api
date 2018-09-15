@@ -13,7 +13,7 @@ class Resolvers::CreateTask < GraphQL::Function
   # args - are the arguments passed
   # _ctx - is the GraphQL context (which would be discussed later)
   def call(_obj, args, ctx)
-    return not_logged_in(ctx) if ctx[:current_user].nil?
+    return not_logged_in if ctx[:current_user].nil?
     Task.create!(
       description: args[:description],
       name: args[:name],
